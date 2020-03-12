@@ -1,5 +1,5 @@
 require 'active_record'
-require 'fast_jsonapi'
+require 'flick_json_api'
 require 'rspec-benchmark'
 require 'byebug'
 require 'active_model_serializers'

@@ -1,7 +1,5 @@
 # Fast JSON API
 
-[![Build Status](https://travis-ci.org/Netflix/fast_jsonapi.svg?branch=master)](https://travis-ci.org/Netflix/fast_jsonapi)
-
 A lightning fast [JSON:API](http://jsonapi.org/) serializer for Ruby Objects.
 
 Note: this gem deals only with implementing the JSON:API spec. If your API
@@ -10,7 +8,7 @@ not work for you.
 
 # Performance Comparison
 
-We compare serialization times with Active Model Serializer as part of RSpec performance tests included on this library. We want to ensure that with every change on this library, serialization time is at least `25 times` faster than Active Model Serializers on up to current benchmark of 1000 records. Please read the [performance document](https://github.com/Netflix/fast_jsonapi/blob/master/performance_methodology.md) for any questions related to methodology.
+We compare serialization times with Active Model Serializer as part of RSpec performance tests included on this library. We want to ensure that with every change on this library, serialization time is at least `25 times` faster than Active Model Serializers on up to current benchmark of 1000 records. Please read the [performance document](performance_methodology.md) for any questions related to methodology.
 
 ## Benchmark times for 250 records
 
@@ -54,7 +52,9 @@ Fast JSON API serialized 250 records in 3.01 ms
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'fast_jsonapi'
+source "https://[TOKEN]@gem.fury.io/flickelectric/" do
+  gem "flick_json_api"
+end
 ```
 
 Execute:
@@ -167,7 +167,7 @@ json_string = MovieSerializer.new(movie).serialized_json
 ```
 
 ### Key Transforms
-By default fast_jsonapi underscores the key names. It supports the same key transforms that are supported by AMS. Here is the syntax of specifying a key transform
+By default flick_json_api underscores the key names. It supports the same key transforms that are supported by AMS. Here is the syntax of specifying a key transform
 
 ```ruby
 class MovieSerializer
@@ -556,16 +556,16 @@ polymorphic | Sets custom record types for each object class in a polymorphic as
 
 ### Instrumentation
 
-`fast_jsonapi` also has builtin [Skylight](https://www.skylight.io/) integration. To enable, add the following to an initializer:
+`flick_json_api` also has builtin [Skylight](https://www.skylight.io/) integration. To enable, add the following to an initializer:
 
 ```ruby
-require 'fast_jsonapi/instrumentation/skylight'
+require 'flick_json_api/instrumentation/skylight'
 ```
 
 Skylight relies on `ActiveSupport::Notifications` to track these two core methods. If you would like to use these notifications without using Skylight, simply require the instrumentation integration:
 
 ```ruby
-require 'fast_jsonapi/instrumentation'
+require 'flick_json_api/instrumentation'
 ```
 
 The two instrumented notifications are supplied by these two constants:
@@ -575,18 +575,15 @@ The two instrumented notifications are supplied by these two constants:
 It is also possible to instrument one method without the other by using one of the following require statements:
 
 ```ruby
-require 'fast_jsonapi/instrumentation/serializable_hash'
-require 'fast_jsonapi/instrumentation/serialized_json'
+require 'flick_json_api/instrumentation/serializable_hash'
+require 'flick_json_api/instrumentation/serialized_json'
 ```
 
 Same goes for the Skylight integration:
 ```ruby
-require 'fast_jsonapi/instrumentation/skylight/normalizers/serializable_hash'
-require 'fast_jsonapi/instrumentation/skylight/normalizers/serialized_json'
+require 'flick_json_api/instrumentation/skylight/normalizers/serializable_hash'
+require 'flick_json_api/instrumentation/skylight/normalizers/serialized_json'
 ```
-
-## Contributing
-Please see [contribution check](https://github.com/Netflix/fast_jsonapi/blob/master/CONTRIBUTING.md) for more details on contributing
 
 ### Running Tests
 We use [RSpec](http://rspec.info/) for testing. We have unit tests, functional tests and performance tests. To run tests use the following command:

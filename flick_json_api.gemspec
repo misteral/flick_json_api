@@ -1,11 +1,11 @@
 lib = File.expand_path('lib', __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
-require "fast_jsonapi/version"
+require "flick_json_api/version"
 
 Gem::Specification.new do |gem|
-  gem.name = "fast_jsonapi"
-  gem.version = FastJsonapi::VERSION
+  gem.name = "flick_json_api"
+  gem.version = FlickJsonApi::VERSION
 
   gem.required_ruby_version = '>= 2.0.0' if gem.respond_to? :required_ruby_version=
   gem.required_rubygems_version = Gem::Requirement.new(">= 0") if gem.respond_to? :required_rubygems_version=
@@ -19,7 +19,7 @@ Gem::Specification.new do |gem|
     "README.md"
   ]
   gem.files = Dir["lib/**/*"]
-  gem.homepage = "http://github.com/Netflix/fast_jsonapi"
+  gem.homepage = "http://github.com/FlickElectric/flick_json_api"
   gem.licenses = ["Apache-2.0"]
   gem.rubygems_version = "2.5.1"
   gem.summary = "fast JSON API(jsonapi.org) serializer"
