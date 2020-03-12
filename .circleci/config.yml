@@ -1,0 +1,70 @@
+# https://circleci.com/docs/2.0/configuration-reference/
+# https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+
+version: 2.1
+
+executors:
+  ruby:
+    docker:
+      - image: flickelectric/ruby:2.7
+        command: bash
+    environment:
+      CI: "true"
+
+workflows:
+  version: 2
+  push:
+    jobs:
+      - rspec:
+          filters:
+            tags:
+              only: /.*/
+      - fury_publish:
+          context: ECR
+          requires:
+            - rspec
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v?[0-9].*/
+
+jobs:
+  rspec:
+    executor: ruby
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-{{ checksum "Gemfile.lock" }}
+            - v1-
+      - run: bundle install
+      - save_cache:
+          key: v1-{{ checksum "Gemfile.lock" }}
+          paths:
+            - /usr/local/bundle/gems
+      - run: bundle exec rspec spec --tag ~performance:true
+      - store_test_results:
+          path: spec/reports
+
+  fury_publish:
+    executor: ruby
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-{{ checksum "Gemfile.lock" }}
+            - v1-
+      - run: bundle install
+      - run:
+          name: Publish to Fury
+          command: |
+            set -euo pipefail
+
+            BUILD_OUTPUT=$(bundle exec rake build)
+            echo "$BUILD_OUTPUT"
+
+            GEM_NAME=$(echo "$BUILD_OUTPUT" | cut -d' ' -f1)
+            GEM_VERSION=$(echo "$BUILD_OUTPUT" | cut -d' ' -f2)
+
+            curl --show-error --fail --form package="@pkg/$GEM_NAME-$GEM_VERSION.gem" "https://$FURY_TOKEN@push.fury.io/flickelectric/"
