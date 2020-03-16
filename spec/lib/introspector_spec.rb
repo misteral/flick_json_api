@@ -27,8 +27,8 @@ RSpec.describe FlickJsonApi do
     expect(required).to eq([])
     expect(properties).to eq(
       id: {},
-      name: { documentation: "Name of the square", enum: ["Fred", "Alice"], examples: ["Fred"], type: "string" },
-      size: { documentation: "Size of the square", examples: [32], format: "int32", type: "integer" }
+      name: { description: "Name of the square", enum: ["Fred", "Alice"], examples: ["Fred"], type: "string" },
+      size: { description: "Size of the square", examples: [32], format: "int32", type: "integer" }
     )
   end
 end
