@@ -20,7 +20,7 @@ describe FastJsonapi::ObjectSerializer do
   end
 
   class User
-    attr_accessor :id, :first_name, :last_name
+    attr_accessor :id, :first_name, :last_name, :uuid
 
     attr_accessor :address_ids, :country_id
 
@@ -39,6 +39,7 @@ describe FastJsonapi::ObjectSerializer do
   class UserSerializer
     include FastJsonapi::ObjectSerializer
     set_type :user
+    set_id :uuid
     attributes :first_name, :last_name
 
     attribute :full_name do |user, params|
@@ -48,6 +49,15 @@ describe FastJsonapi::ObjectSerializer do
     has_many :addresses, cached: true
     belongs_to :country
     has_one :photo
+  end
+
+  class Address
+    attr_accessor :street, :city, :state, :postal_code
+  end
+
+  class AddressSerializer
+    include FastJsonapi::ObjectSerializer
+    attributes :street, :city, :state, :postal_code
   end
 
   class Photo
@@ -72,6 +82,11 @@ describe FastJsonapi::ObjectSerializer do
     attr_accessor :id, :employee_id
   end
 
+  class EmployeeAccountSerializer
+    include FastJsonapi::ObjectSerializer
+    belongs_to :employee
+  end
+
   class Employee < User
     attr_accessor :id, :location, :compensation
 
@@ -92,7 +107,7 @@ describe FastJsonapi::ObjectSerializer do
     attributes :location
     attributes :compensation
 
-    has_one :account
+    has_one :account, serializer: EmployeeAccountSerializer
   end
 
   it 'sets the correct record type' do
@@ -124,6 +139,14 @@ describe FastJsonapi::ObjectSerializer do
     it 'doesnt change parent class attributes' do
       EmployeeSerializer
       expect(UserSerializer.attributes_to_serialize).not_to have_key(:location)
+    end
+
+    it 'inherits the id source' do
+      e = Employee.new
+      e.id = 2
+      e.uuid = SecureRandom.uuid
+      id = EmployeeSerializer.new(e).serializable_hash[:data][:id]
+      expect(id).to eq(e.uuid)
     end
   end
 
@@ -158,11 +181,9 @@ describe FastJsonapi::ObjectSerializer do
   end
 
   context 'when test inheritence of other attributes' do
-
     it 'inherits the tranform method' do
       EmployeeSerializer
       expect(UserSerializer.transform_method).to eq EmployeeSerializer.transform_method
     end
-
   end
 end

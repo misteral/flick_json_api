@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'active_support/concern'
-require 'fast_jsonapi/multi_to_json'
 
 module FastJsonapi
   MandatoryField = Class.new(StandardError)
@@ -18,9 +17,8 @@ module FastJsonapi
                       :transform_method,
                       :record_type,
                       :record_id,
-                      :cache_length,
-                      :race_condition_ttl,
-                      :cached,
+                      :cache_store_instance,
+                      :cache_store_options,
                       :data_links,
                       :meta_to_serialize
       end
@@ -63,12 +61,12 @@ module FastJsonapi
       end
 
       def meta_hash(record, params = {})
-        meta_to_serialize.call(record, params)
+        FastJsonapi.call_proc(meta_to_serialize, record, params)
       end
 
       def record_hash(record, fieldset, includes_list, params = {})
-        if cached
-          record_hash = Rails.cache.fetch(record.cache_key, expires_in: cache_length, race_condition_ttl: race_condition_ttl) do
+        if cache_store_instance
+          record_hash = cache_store_instance.fetch(record, **cache_store_options) do
             temp_hash = id_hash(id_from_record(record, params), record_type, true)
             temp_hash[:attributes] = attributes_hash(record, fieldset, params) if attributes_to_serialize.present?
             temp_hash[:relationships] = {}
@@ -90,15 +88,10 @@ module FastJsonapi
       end
 
       def id_from_record(record, params)
-        return record_id.call(record, params) if record_id.is_a?(Proc)
+        return FastJsonapi.call_proc(record_id, record, params) if record_id.is_a?(Proc)
         return record.send(record_id) if record_id
         raise MandatoryField, 'id is a mandatory field in the jsonapi spec' unless record.respond_to?(:id)
         record.id
-      end
-
-      # Override #to_json for alternative implementation
-      def to_json(payload)
-        FastJsonapi::MultiToJson.to_json(payload) if payload.present?
       end
 
       def parse_include_item(include_item)
@@ -125,21 +118,18 @@ module FastJsonapi
             next unless relationships_to_serialize && relationships_to_serialize[item]
             relationship_item = relationships_to_serialize[item]
             next unless relationship_item.include_relationship?(record, params)
-            unless relationship_item.polymorphic.is_a?(Hash)
-              record_type = relationship_item.record_type
-              serializer = relationship_item.serializer.to_s.constantize
-            end
             relationship_type = relationship_item.relationship_type
 
             included_objects = relationship_item.fetch_associated_object(record, params)
             next if included_objects.blank?
             included_objects = [included_objects] unless relationship_type == :has_many
 
+            static_serializer = relationship_item.static_serializer
+            static_record_type = relationship_item.static_record_type
+
             included_objects.each do |inc_obj|
-              if relationship_item.polymorphic.is_a?(Hash)
-                record_type = inc_obj.class.name.demodulize.underscore
-                serializer = self.compute_serializer_name(inc_obj.class.name.demodulize.to_sym).to_s.constantize
-              end
+              serializer = static_serializer || relationship_item.serializer_for(inc_obj, params)
+              record_type = static_record_type || serializer.record_type
 
               if remaining_items.present?
                 serializer_records = serializer.get_included_records(inc_obj, remaining_items, known_included_objects, fieldsets, params)
@@ -151,7 +141,7 @@ module FastJsonapi
 
               known_included_objects[code] = inc_obj
 
-              included_records << serializer.record_hash(inc_obj, fieldsets[serializer.record_type], includes_list, params)
+              included_records << serializer.record_hash(inc_obj, fieldsets[record_type], includes_list, params)
             end
           end
         end
