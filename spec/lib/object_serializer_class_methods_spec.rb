@@ -16,35 +16,51 @@ describe FastJsonapi::ObjectSerializer do
     end
 
     context 'with namespace' do
+
+      before do
+        class AppName::V1::RoleSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
       let(:serializer) { AppName::V1::MovieSerializer }
       let(:children) { [:roles] }
+      let(:relationship_serializer) { AppName::V1::RoleSerializer }
 
       context 'with overrides' do
         let(:children) { [:roles, id_method_name: :roles_only_ids, record_type: :super_role] }
 
-        it_behaves_like 'returning correct relationship hash', :'AppName::V1::RoleSerializer', :roles_only_ids, :super_role
+        it_behaves_like 'returning correct relationship hash', :roles_only_ids, :super_role
       end
 
       context 'without overrides' do
         let(:children) { [:roles] }
 
-        it_behaves_like 'returning correct relationship hash', :'AppName::V1::RoleSerializer', :role_ids, :role
+        it_behaves_like 'returning correct relationship hash', :role_ids, :role
       end
     end
 
     context 'without namespace' do
+
+      before do
+        class RoleSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
       let(:serializer) { MovieSerializer }
+      let(:relationship_serializer) { RoleSerializer }
 
       context 'with overrides' do
         let(:children) { [:roles, id_method_name: :roles_only_ids, record_type: :super_role] }
 
-        it_behaves_like 'returning correct relationship hash', :'RoleSerializer', :roles_only_ids, :super_role
+        it_behaves_like 'returning correct relationship hash', :roles_only_ids, :super_role
       end
 
       context 'without overrides' do
         let(:children) { [:roles] }
 
-        it_behaves_like 'returning correct relationship hash', :'RoleSerializer', :role_ids, :role
+        it_behaves_like 'returning correct relationship hash', :role_ids, :role
       end
     end
   end
@@ -112,6 +128,25 @@ describe FastJsonapi::ObjectSerializer do
     end
   end
 
+  describe '#has_many with &:proc' do
+    before do
+      MovieSerializer.has_many :stars, &:actors
+    end
+
+    after do
+      MovieSerializer.relationships_to_serialize.delete(:stars)
+    end
+
+    subject(:hash) { MovieSerializer.new(movie).serializable_hash }
+
+    it 'returns correct hash' do
+      expect(hash[:data][:relationships][:stars][:data].length).to eq(3)
+      expect(hash[:data][:relationships][:stars][:data][0]).to eq({ id: '1', type: :actor })
+      expect(hash[:data][:relationships][:stars][:data][1]).to eq({ id: '2', type: :actor })
+      expect(hash[:data][:relationships][:stars][:data][2]).to eq({ id: '3', type: :actor })
+    end
+  end
+
   describe '#belongs_to' do
     subject(:relationship) { MovieSerializer.relationships_to_serialize[:area] }
 
@@ -124,15 +159,31 @@ describe FastJsonapi::ObjectSerializer do
     end
 
     context 'with overrides' do
-      let(:parent) { [:area, id_method_name: :blah_id, record_type: :awesome_area, serializer: :my_area] }
 
-      it_behaves_like 'returning correct relationship hash', :'MyAreaSerializer', :blah_id, :awesome_area
+      before do
+        class MyAreaSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
+      let(:parent) { [:area, id_method_name: :blah_id, record_type: :awesome_area, serializer: :my_area] }
+      let(:relationship_serializer) { MyAreaSerializer }
+
+      it_behaves_like 'returning correct relationship hash', :blah_id, :awesome_area
     end
 
     context 'without overrides' do
-      let(:parent) { [:area] }
 
-      it_behaves_like 'returning correct relationship hash', :'AreaSerializer', :area_id, :area
+      before do
+        class AreaSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
+      let(:parent) { [:area] }
+      let(:relationship_serializer) { AreaSerializer }
+
+      it_behaves_like 'returning correct relationship hash', :area_id, :area
     end
   end
 
@@ -168,6 +219,22 @@ describe FastJsonapi::ObjectSerializer do
     end
   end
 
+  describe '#belongs_to with &:proc' do
+    before do
+      MovieSerializer.belongs_to :user, &:owner
+    end
+
+    after do
+      MovieSerializer.relationships_to_serialize.delete(:user)
+    end
+
+    subject(:hash) { MovieSerializer.new(movie).serializable_hash }
+
+    it 'returns correct hash' do
+      expect(hash[:data][:relationships][:user][:data]).to eq({ id: '3', type: :owner })
+    end
+  end
+
   describe '#has_one' do
     subject(:relationship) { MovieSerializer.relationships_to_serialize[:area] }
 
@@ -180,15 +247,47 @@ describe FastJsonapi::ObjectSerializer do
     end
 
     context 'with overrides' do
-      let(:partner) { [:area, id_method_name: :blah_id, record_type: :awesome_area, serializer: :my_area] }
 
-      it_behaves_like 'returning correct relationship hash', :'MyAreaSerializer', :blah_id, :awesome_area
+      before do
+        class MyAreaSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
+      let(:partner) { [:area, id_method_name: :blah_id, record_type: :awesome_area, serializer: :my_area] }
+      let(:relationship_serializer) { MyAreaSerializer }
+
+      it_behaves_like 'returning correct relationship hash', :blah_id, :awesome_area
     end
 
     context 'without overrides' do
-      let(:partner) { [:area] }
 
-      it_behaves_like 'returning correct relationship hash', :'AreaSerializer', :area_id, :area
+      before do
+        class AreaSerializer
+          include FastJsonapi::ObjectSerializer
+        end
+      end
+
+      let(:partner) { [:area] }
+      let(:relationship_serializer) { AreaSerializer }
+
+      it_behaves_like 'returning correct relationship hash', :area_id, :area
+    end
+  end
+
+  describe '#has_one with &:proc' do
+    before do
+      MovieSerializer.has_one :user, &:owner
+    end
+
+    after do
+      MovieSerializer.relationships_to_serialize.delete(:user)
+    end
+
+    subject(:hash) { MovieSerializer.new(movie).serializable_hash }
+
+    it 'returns correct hash' do
+      expect(hash[:data][:relationships][:user][:data]).to eq({ id: '3', type: :owner })
     end
   end
 
@@ -255,6 +354,24 @@ describe FastJsonapi::ObjectSerializer do
         end
       end
     end
+
+    context 'with a lambda' do
+      let(:params) { { prefix: 'movie' } }
+
+      before do
+        MovieSerializer.set_id ->(record) { "#{params[:prefix]}-#{record.owner_id}" }
+      end
+
+      after do
+        MovieSerializer.set_id nil
+      end
+
+      let(:resource) { movie }
+
+      it 'returns correct hash which id equals movie-id' do
+        expect(serializable_hash[:data][:id]).to eq "movie-#{movie.owner_id}"
+      end
+    end
   end
 
   describe '#use_hyphen' do
@@ -301,6 +418,25 @@ describe FastJsonapi::ObjectSerializer do
 
       after do
         MovieSerializer.attributes_to_serialize.delete(:released_in_year)
+        MovieSerializer.attributes_to_serialize.delete(:name)
+      end
+
+      it 'returns correct hash when serializable_hash is called' do
+        expect(serializable_hash[:data][:attributes][:name]).to eq "english #{movie.name}"
+        expect(serializable_hash[:data][:attributes][:released_in_year]).to eq movie.release_year
+      end
+    end
+
+    context 'with lambda' do
+      before do
+        movie.release_year = 2008
+        MovieSerializer.attribute :released_in_year, &:release_year
+        MovieSerializer.attribute :name, ->(object) { object.local_name }
+      end
+
+      after do
+        MovieSerializer.attributes_to_serialize.delete(:released_in_year)
+        MovieSerializer.attributes_to_serialize.delete(:name)
       end
 
       it 'returns correct hash when serializable_hash is called' do
@@ -313,22 +449,40 @@ describe FastJsonapi::ObjectSerializer do
   describe '#meta' do
     subject(:serializable_hash) { MovieSerializer.new(movie).serializable_hash }
 
-    before do
-      movie.release_year = 2008
-      MovieSerializer.meta do |movie|
-        {
-          years_since_release: year_since_release_calculator(movie.release_year)
-        }
+    context 'with block' do
+      before do
+        movie.release_year = 2008
+        MovieSerializer.meta do |movie|
+          {
+            years_since_release: year_since_release_calculator(movie.release_year)
+          }
+        end
+      end
+
+      after do
+        movie.release_year = nil
+        MovieSerializer.meta_to_serialize = nil
+      end
+
+      it 'returns correct hash when serializable_hash is called' do
+        expect(serializable_hash[:data][:meta]).to eq ({ years_since_release: year_since_release_calculator(movie.release_year) })
       end
     end
 
-    after do
-      movie.release_year = nil
-      MovieSerializer.meta_to_serialize = nil
-    end
+    context 'with lambda' do
+      before do
+        movie.release_year = 2008
+        MovieSerializer.meta ->(movie) { { years_since_release: year_since_release_calculator(movie.release_year) } }
+      end
 
-    it 'returns correct hash when serializable_hash is called' do
-      expect(serializable_hash[:data][:meta]).to eq ({ years_since_release: year_since_release_calculator(movie.release_year) })
+      after do
+        movie.release_year = nil
+        MovieSerializer.meta_to_serialize = nil
+      end
+
+      it 'returns correct hash when serializable_hash is called' do
+        expect(serializable_hash[:data][:meta]).to eq ({ years_since_release: year_since_release_calculator(movie.release_year) })
+      end
     end
 
     private
@@ -422,6 +576,26 @@ describe FastJsonapi::ObjectSerializer do
 
       context 'when the link is not provided' do
         let(:params) { { params: {} } }
+        it 'does not include the link' do
+          expect(downloadable_serializable_hash[:data][:links]).to_not have_key(:download)
+        end
+      end
+    end
+
+    describe 'optional links with a lambda' do
+      subject(:downloadable_serializable_hash) { OptionalDownloadableMovieWithLambdaSerializer.new(movie).serializable_hash }
+
+      context 'when the link should be provided' do
+        before { movie.release_year = 2001 }
+
+        it 'includes the link' do
+          expect(downloadable_serializable_hash[:data][:links][:download]).to eq '/download/232'
+        end
+      end
+
+      context 'when the link should not be provided' do
+        before { movie.release_year = 1970 }
+
         it 'does not include the link' do
           expect(downloadable_serializable_hash[:data][:links]).to_not have_key(:download)
         end
