@@ -46,5 +46,11 @@ module FlickJsonApi
     def attribute_documentation
       self.class.attribute_documentation
     end
+
+    # @deprecated upstream, but necessary to override here to prevent conflicts with Grape
+    # which expects to_json to accept an options parameter
+    def to_json(_options = {})
+      serialized_json
+    end
   end
 end
